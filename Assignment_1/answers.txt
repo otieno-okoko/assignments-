@@ -1,0 +1,97 @@
+1.How many earthquakes are listed in the table?
+     There are 5958 earthquakes : wc -l signif.txt.tsv
+2. How many columns are in the table?
+      47 columns: awk -F'\t' '{print NF; exit}' signif.txt.tsv
+3. Use the cut command to create a new file that just has the data from the columns for YEAR, EQ_PRIMARY and COUNTRY. Hint: you can get the column numbers by using the head command to view the first row and then visually count the column numbers for the above fields (there is also a unix command to do this, but we didn't cover it in class). Call the new data file 'Year_Mag_Country.tsv'. You can use 'Year_Mag_Country.tsv' for the rest of the exercises below.
+      cut -f 3,10,18 signif.txt.tsv > Year_Mag_Country.tsv
+4. EQ_PRIMARY is the assigned earthquake magnitude. With your new file 'Year_Mag_Country.tsv', sort the data based on the numeric value of the EQ_PRIMARY column, then list the lines for the top ten largest earthquakes.
+        awk -F'\t' 'NR > 1 { print $2 "\t" $0 }' Year_Mag_Country.tsv | sort -nr | head -n 10 | cut -f 2-
+5. How many unique countries are listed in the database? Use cut,sort,uniq, wc and a few pipes | to form a single expression that answers this question.
+    153 uniq entries: cut -f 3 Year_Mag_Country.tsv | sed '1d' | sort | uniq | wc -l
+6. Use the grep command to count how many earthquakes in the database are located in the USA or USA TERRITORY
+         294: GREP -e '\b(USA|USA TERRITORY)\b' Year_Mag_Country.tsv|wc -l
+7. Expanding on the previous exercise, refine your command sequence so that it only counts earthquakes in the USA and not ones in USA TERRITORY. Hint: use the -v argument with grep and you may need to call grep more than once.
+         255 :grep -E '\bUSA\b' Year_Mag_Country.tsv| grep -v 'USA TERRITORY'| wc -l
+8. Compute the total number of earthquakes in each country and then display the top ten countries along with the number of earthquakes. Hint: this can be done with a command sequence similar to exercise 5, but requires a specific argument to be used with uniq.
+      cut -f 3 Year_Mag_Country.tsv | sort | uniq -c | sort -nr| head -n 10
+        579 CHINA
+        400 JAPAN
+        365 IRAN
+        363 INDONESIA
+        324 ITALY
+        319 TURKEY
+        259 GREECE
+        255 USA
+        207 PHILIPPINES
+        193 MEXICO
+9. Create a shell script named countEq.sh that returns the total number of earthquakes for a given country, where the country is specified as the option when calling the script. Hint: see the Shell Script notes and use the special variable $1. Paste your script below and give an example calling sequence for country USA.
+        #!/bin/bash
+        # Check if the country argument is provided
+        if [ -z "$1" ]; then
+          echo "Usage: $0 <country>"
+          exit 1
+        fi
+        # Assign the country argument to a variable
+        country="$1"
+        # Extract the country column, filter for the specified country, and count occurrences
+        count=$(cut -f 3 Year_Mag_Country.tsv | grep -c "^$country$")
+        # Display the result
+        echo "Total number of earthquakes in $country: $count"
+
+        execute permission: CHMOD +x countEq.sh
+        unix command: ./countEq.sh USA
+
+10. Create a shell script named countEq_getLargestEq.sh that returns both the total number of earthquakes AND the largest earthquake for a given country, where the country is specified as the option when calling the script. Use the echo command before each command to create labels for each returned value. Paste your script below and give an example calling sequence for country CHILE.
+    #!/bin/bash
+    if [ "$#" -ne 1 ]; then
+        echo "Usage: $0 <country>"
+        exit 1
+    fi
+    country="$1"
+    file="Year_Mag_Country.tsv"
+    if [ ! -f "$file" ]; then
+        echo "Error: File 'Year_Mag_Country.tsv' does not exist"
+        exit 1
+    fi
+    total_earthquakes=$(awk -F'\t' -v country="$country" '$3 == country {sum+=1} END {print sum}' "$file")
+    echo "Total Earthquakes for $country: $total_earthquakes"
+    largest_earthquake=$(awk -F'\t' -v country="$country" '$3 == country{print $2}' "$file" | sort -nr | head -n 1)
+    echo "Largest Earthquake Magnitude for $country: $largest_earthquake"
+    
+    chmod u+x countEq_getLargestEq.sh
+    ./countEq_getLargestEq.sh CHILE
+    
+    Total Earthquakes for CHILE: 192
+    Largest Earthquake Magnitude for CHILE:  9.5
+
+11. Compute the total number of earthquakes each year and then output a sorted list of the top ten years with the most earthquakes. Paste your command and the top ten list below.
+    cut -f 1 Year_Mag_Country.tsv | sort | uniq -c | sort -nr| head -n 10
+         78 2004
+         77 2008
+         72 2003
+         67 2007
+         62 2010
+         61 2006
+         60 2009
+         60 2005
+         60 2002
+         59 2011
+
+12. Create a shell script that loops over the top ten years with the most earthquakes (from exercise 11), finds all the earthquakes for a given year and writes them to file named $YEAR-earthquakes.txt, where $YEAR is the for loop variable assigned from the top ten list. Your code should output ten different files (one for each year in the top ten list). Hints: Take your answer from exercise 11 and extract the year column, then use this for the range in a for loop by inserting them like this for YEAR in $(insert code that lists top ten years here). The rest is just a grep and a redirect > to a file with the correct name.
+        #!/bin/bash
+        # Check if the file argument is provided
+        if [ -z "$1" ]; then
+          echo "Usage: $0 <file>"
+          exit 1
+        fi
+        # Assign the file argument to a variable
+        file="$1"
+        # Extract the top ten years with the most earthquakes
+        top_ten_years=$(cut -f 1 "$file" | sort | uniq -c | sort -nr | head -n 10 | awk '{print $2}')
+        # Loop over the top ten years
+        for year in $top_ten_years; do
+          # Extract earthquakes for the current year and write to a file
+          grep -w "$year" "$file" > "${year}-earthquakes.txt"
+        done
+        echo "Files created successfully."
+13. Turn in your homework by sharing it with us on a GitHub repository. Instructions: on GitHub, create a private git repository called Assignment_2. Share this repository with users graheja  and dmw2166. Clone the repository to your laptop. Save your answers to the exercises above in a text file called answers.txt. Use git to commit answers.txt to your repository on your laptop, and then push the changes to the remote repository on GitHub.
